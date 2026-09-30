@@ -1,0 +1,9 @@
+data/amazon2023/
+data/ml-1m/
+data/*.csv
+runs/
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
