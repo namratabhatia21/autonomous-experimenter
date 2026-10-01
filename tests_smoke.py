@@ -120,6 +120,90 @@ def test_nonfinite_scores_are_refused():
         check("evaluator refuses NaN scores", "non-finite" in str(exc))
 
 
+def test_no_harm_hypothesis_is_not_refuted_by_improvement():
+    """A no-harm claim must not be refuted by the metric moving *up*."""
+    from autoexp.evaluate import PRIMARY_METRIC
+    from autoexp.planner import Evidence, Planner
+    from autoexp.types import Hypothesis
+
+    pl = Planner()
+    h = Hypothesis(
+        id="H-noharm", round=1, statement="does not degrade", rationale="guardrail",
+        metric=PRIMARY_METRIC, slice="all", target_delta=-0.02,
+        treatment="t", control="c", direction="no_harm",
+    )
+    # +3.7% with an interval entirely above the -2% bar.
+    cmp = {"n": 4104, "n_informative": 61, "delta": 0.0003, "rel_lift_pct": 3.7,
+           "ci_low": 0.0, "ci_high": 0.0007, "rel_ci_low": 0.1, "rel_ci_high": 8.0,
+           "significant": False, "baseline": 0.008}
+    verdict = _verdict_for(pl, h, cmp)
+    check("+3.7% against a -2% no-harm bar is SUPPORTED, not refuted",
+          verdict == "supported", f"got {verdict}")
+
+    # A genuine regression: the whole interval sits below the bar.
+    cmp2 = dict(cmp, rel_ci_low=-30.0, rel_ci_high=-12.0, rel_lift_pct=-20.0)
+    check("a real regression past the bar is REFUTED",
+          _verdict_for(pl, h, cmp2) == "refuted")
+
+    # Improvement claim whose interval straddles the bar.
+    h2 = Hypothesis(id="H-up", round=1, statement="improves", rationale="",
+                    metric=PRIMARY_METRIC, slice="all", target_delta=0.05,
+                    treatment="t", control="c")
+    cmp3 = dict(cmp, rel_ci_low=-4.3, rel_ci_high=2.1, rel_lift_pct=-1.9)
+    check("an interval entirely below a +5% bar is REFUTED",
+          _verdict_for(pl, h2, cmp3) == "refuted")
+    cmp4 = dict(cmp, rel_ci_low=-1.0, rel_ci_high=12.0, rel_lift_pct=5.5)
+    check("an interval straddling the bar is INCONCLUSIVE",
+          _verdict_for(pl, h2, cmp4) == "inconclusive")
+
+
+def _verdict_for(planner, h, cmp):
+    """Drive Planner.judge against a canned comparison."""
+    import autoexp.planner as P
+    from autoexp.evaluate import EvalResult
+    import pandas as pd
+
+    ev = P.Evidence(profile={})
+    ev.results = {
+        "t": EvalResult("t", {}, {}, pd.DataFrame(), family="x"),
+        "c": EvalResult("c", {}, {}, pd.DataFrame(), family="y"),
+    }
+    h.verdict = None
+    ev.hypotheses = [h]
+    real = P.paired_comparison
+    P.paired_comparison = lambda *a, **k: cmp
+    try:
+        planner.judge(ev, h.round)
+    finally:
+        P.paired_comparison = real
+    return h.verdict
+
+
+def test_pruning_protects_future_control_arms():
+    """A weak arm in round 1 can still be a later experiment's control."""
+    from autoexp.evaluate import EvalResult
+    from autoexp.planner import ACTION_REQUIRES, Evidence, Planner
+
+    pl = Planner(max_rounds=4)
+    pl.executed_actions = {"baselines"}          # round 1 has run, nothing else
+    ev = Evidence(profile={})
+    ev.results = {
+        "item_knn(k=150)": EvalResult("item_knn(k=150)", {"ndcg@10": 0.0126}, {},
+                                      __import__("pandas").DataFrame(), family="item_knn"),
+        "graph_walk(within,L=3)": EvalResult("graph_walk(within,L=3)", {"ndcg@10": 0.0072}, {},
+                                             __import__("pandas").DataFrame(), family="graph_walk"),
+    }
+    pl.prune(ev)
+    check("graph_walk survives round-1 pruning while its own test is pending",
+          "graph_walk" not in ev.pruned_families,
+          f"pruned: {ev.pruned_families}")
+
+    pl.executed_actions |= {"cross_vertical_ablation", "graph_depth_and_kg"}
+    pl.prune(ev)
+    check("graph_walk becomes prunable once its experiments have run",
+          "graph_walk" in ev.pruned_families)
+
+
 if __name__ == "__main__":
     for fn in [
         test_ranking_is_pessimistic_on_ties,
@@ -129,6 +213,8 @@ if __name__ == "__main__":
         test_kg_edges_carry_the_requested_mass,
         test_paired_comparison_slices,
         test_nonfinite_scores_are_refused,
+        test_pruning_protects_future_control_arms,
+        test_no_harm_hypothesis_is_not_refuted_by_improvement,
     ]:
         print(f"\n{fn.__name__}")
         fn()

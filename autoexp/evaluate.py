@@ -116,7 +116,7 @@ def evaluate_model(model, data, eval_df: pd.DataFrame,
 
     rows_out = []
     topk_items: List[np.ndarray] = []
-    t0 = time.time()
+    t0 = time.perf_counter()
 
     for vertical, grp in eval_df.groupby("vertical", sort=False):
         cand = data.candidates[vertical]
@@ -162,7 +162,7 @@ def evaluate_model(model, data, eval_df: pd.DataFrame,
             rows_out.append(out)
 
     per_row = pd.concat(rows_out, ignore_index=True)
-    score_seconds = time.time() - t0
+    score_seconds = time.perf_counter() - t0
 
     metric_cols = [c for c in per_row.columns
                    if c.startswith(("hit@", "ndcg@")) or c == "mrr"]
@@ -256,6 +256,11 @@ def paired_comparison(a: EvalResult, b: EvalResult, metric: str = PRIMARY_METRIC
         "rel_lift_pct": float(100 * delta / base) if base > 0 else float("nan"),
         "ci_low": float(lo),
         "ci_high": float(hi),
+        # The CI expressed as relative lift, so a verdict can be decided by
+        # comparing the whole interval against the threshold the hypothesis
+        # committed to in advance.
+        "rel_ci_low": float(100 * lo / base) if base > 0 else float("nan"),
+        "rel_ci_high": float(100 * hi / base) if base > 0 else float("nan"),
         "p_value": float(min(1.0, p)),
         "significant": bool(lo > 0 or hi < 0),
         "win_rate": float((d > 0).mean()),

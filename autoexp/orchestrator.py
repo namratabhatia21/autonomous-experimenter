@@ -154,7 +154,7 @@ class AutonomousExperimenter:
 
     # ------------------------------------------------------------------ run
     def run(self) -> RunResult:
-        t0 = time.time()
+        t0 = time.monotonic()
         run_id = time.strftime("%Y%m%d-%H%M%S")
         prof = self.profile()
         ev = Evidence(profile=prof)
@@ -173,7 +173,7 @@ class AutonomousExperimenter:
         stopped = "completed all planned rounds"
 
         for round_no in range(1, self.planner.max_rounds + 1):
-            if time.time() - t0 > self.time_budget:
+            if time.monotonic() - t0 > self.time_budget:
                 stopped = f"time budget of {self.time_budget:.0f}s exhausted"
                 break
 
@@ -207,7 +207,7 @@ class AutonomousExperimenter:
                 ev.champion = best.model
                 self._log(f"    leader: {best.model}  {PRIMARY_METRIC}={best.primary:.4f}")
 
-            stop = self.planner.should_stop(ev, best_history)
+            stop = self.planner.should_stop(ev, best_history, round_no + 1)
             if stop:
                 stopped = stop
                 self._log(f"    STOP: {stop}")
@@ -222,7 +222,7 @@ class AutonomousExperimenter:
             baseline="popularity" if "popularity" in ev.results else "",
             decision=decision, hypotheses=ev.hypotheses, notes=ev.notes,
             planner_decisions=self.planner.decisions,
-            elapsed=time.time() - t0, stopped_because=stopped,
+            elapsed=time.monotonic() - t0, stopped_because=stopped,
         )
 
     # --------------------------------------------------------------- trials
@@ -232,11 +232,11 @@ class AutonomousExperimenter:
                 ev.notes.append(f"{trial.id} skipped: family '{trial.family}' was pruned")
                 continue
             try:
-                t0 = time.time()
+                t0 = time.perf_counter()
                 retr = self._surviving_retrievers(ev) if trial.family == "two_stage" else None
                 model = registry.build(trial.family, trial.params, retrievers=retr)
                 model.fit(self.data)
-                fit_s = time.time() - t0
+                fit_s = time.perf_counter() - t0
 
                 result = evaluate_model(model, self.data, eval_df)
                 result.fit_seconds = fit_s

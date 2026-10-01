@@ -143,7 +143,7 @@ class SASRec(Recommender):
         n = seq.shape[0]
         bs = int(p["batch_size"])
         rng = np.random.default_rng(int(p["seed"]))
-        start = time.time()
+        start = time.monotonic()
         self.history_ = []
 
         for epoch in range(int(p["epochs"])):
@@ -177,7 +177,7 @@ class SASRec(Recommender):
                 total += float(loss) * int(mask.sum())
                 count += int(mask.sum())
             self.history_.append(total / max(count, 1))
-            if time.time() - start > self.max_seconds:
+            if time.monotonic() - start > self.max_seconds:
                 self.history_.append(f"stopped early at epoch {epoch + 1} (time budget)")
                 break
 

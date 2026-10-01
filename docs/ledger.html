@@ -1,0 +1,500 @@
+<title>Cross-Vertical Experiment Ledger</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+  :root{
+    --ground:#e9ecee; --surface:#fff; --surface-2:#f2f5f6; --inset:#e3e8ea;
+    --ink:#15181b; --ink-2:#39434a; --muted:#5e6a70; --line:#d2d9dc; --line-2:#bcc5c9;
+    --accent:#0b6b67; --accent-soft:#d7e9e8;
+    --held:#176b3d; --held-bg:#e0efe6; --refuted:#9a2033; --refuted-bg:#f6e3e6;
+    --under:#7d5b0d; --under-bg:#f6edd9;
+    --sans:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+    --pad:clamp(18px,4.5vw,44px);
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --ground:#121518; --surface:#1b1f22; --surface-2:#22272b; --inset:#171b1e;
+    --ink:#e6ebed; --ink-2:#c0cace; --muted:#93a0a6; --line:#2d343a; --line-2:#3b444a;
+    --accent:#35c9bd; --accent-soft:#16312f;
+    --held:#5fd68d; --held-bg:#13301f; --refuted:#fb8597; --refuted-bg:#331418;
+    --under:#e0b43c; --under-bg:#2e2410;
+  }}
+  :root[data-theme="dark"]{
+    --ground:#121518; --surface:#1b1f22; --surface-2:#22272b; --inset:#171b1e;
+    --ink:#e6ebed; --ink-2:#c0cace; --muted:#93a0a6; --line:#2d343a; --line-2:#3b444a;
+    --accent:#35c9bd; --accent-soft:#16312f;
+    --held:#5fd68d; --held-bg:#13301f; --refuted:#fb8597; --refuted-bg:#331418;
+    --under:#e0b43c; --under-bg:#2e2410;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--serif);
+       font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 var(--pad) 72px}
+  .col{max-width:68ch}
+  h1,h2,h3,.lbl{font-family:var(--sans)}
+  h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.01em;margin:0 0 4px;
+     text-wrap:balance}
+  h3{font-size:17px;font-weight:600;margin:0 0 6px}
+  p{margin:0 0 14px}
+  a{color:var(--accent)}
+  code,.mono{font-family:var(--mono);font-size:.88em}
+  .lbl{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+       color:var(--muted)}
+
+  /* masthead */
+  header{border-bottom:2px solid var(--ink);padding:52px 0 20px;margin-bottom:0}
+  .eyebrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:clamp(31px,5.6vw,52px);font-weight:700;letter-spacing:-.025em;
+     line-height:1.04;margin:0 0 12px;text-wrap:balance}
+  .standfirst{font-size:clamp(17px,2vw,19.5px);color:var(--ink-2);max-width:60ch;
+              margin:0;font-style:italic}
+
+  /* run strip */
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));
+         border-bottom:1px solid var(--line);margin-bottom:40px}
+  .strip div{padding:14px 16px 14px 0}
+  .strip .v{font-family:var(--mono);font-size:18px;font-weight:500;
+            font-variant-numeric:tabular-nums;color:var(--ink)}
+  .strip .k{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:.09em;
+            text-transform:uppercase;color:var(--muted);margin-top:2px}
+
+  section{padding:34px 0;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  .kicker{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+  .kicker .num{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);
+               padding-top:4px}
+  .note{font-size:14.2px;color:var(--muted);max-width:64ch}
+
+  /* ledger */
+  .ledger{display:flex;flex-direction:column;gap:0;margin:22px 0 10px;
+          border-top:1px solid var(--line-2)}
+  .hyp{display:grid;grid-template-columns:minmax(0,1.22fr) minmax(230px,.95fr);
+       gap:20px 26px;padding:17px 0;border-bottom:1px solid var(--line);align-items:start}
+  .hyp .claim{font-size:15.6px;color:var(--ink);margin:5px 0 7px;max-width:52ch}
+  .hyp .meta{font-family:var(--mono);font-size:11.6px;color:var(--muted);
+             display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .hyp .meta b{color:var(--ink-2);font-weight:500}
+  .idrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .hid{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-2)}
+  .chip{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.08em;
+        text-transform:uppercase;padding:2.5px 7px;border-radius:2px;white-space:nowrap}
+  .chip.held{background:var(--held-bg);color:var(--held)}
+  .chip.refuted{background:var(--refuted-bg);color:var(--refuted)}
+  .chip.underpowered{background:var(--under-bg);color:var(--under)}
+  .plot{min-width:0}
+  .plot svg{display:block;width:100%;height:auto;overflow:visible}
+  .plot .cap{font-family:var(--mono);font-size:11.4px;color:var(--muted);margin-top:3px;
+             font-variant-numeric:tabular-nums}
+
+  /* comparison */
+  .vs{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:1px;
+      background:var(--line);border:1px solid var(--line);margin:20px 0 12px}
+  .vs > div{background:var(--surface);padding:19px 20px}
+  .vs .ds{font-family:var(--mono);font-size:11.6px;color:var(--accent);font-weight:500}
+  .vs .big{font-family:var(--sans);font-size:33px;font-weight:700;letter-spacing:-.02em;
+           margin:7px 0 1px;font-variant-numeric:tabular-nums}
+  .vs .ci{font-family:var(--mono);font-size:12px;color:var(--muted);
+          font-variant-numeric:tabular-nums}
+  .vs .verdict{margin-top:11px}
+  .vs .expl{font-size:13.8px;color:var(--ink-2);margin:10px 0 0}
+
+  /* tables */
+  .scroll{overflow-x:auto;margin:18px 0 8px;border:1px solid var(--line);
+          background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.4px;
+        font-variant-numeric:tabular-nums}
+  th{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+     text-transform:uppercase;color:var(--muted);text-align:right;padding:10px 11px;
+     border-bottom:1px solid var(--line-2);white-space:nowrap;background:var(--surface-2)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tr.win td{background:var(--accent-soft)}
+  tr.win td:first-child{font-weight:600}
+  .fam{color:var(--muted);font-size:11.4px}
+  .bar{display:inline-block;height:7px;background:var(--accent);vertical-align:middle;
+       margin-right:7px;border-radius:1px}
+
+  /* rounds */
+  .rounds{display:flex;flex-direction:column;gap:0;margin-top:18px;
+          border-top:1px solid var(--line-2)}
+  .round{display:grid;grid-template-columns:52px minmax(0,1fr);gap:18px;padding:17px 0;
+         border-bottom:1px solid var(--line)}
+  .round .rn{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600;
+             padding-top:2px}
+  .round .goal{font-family:var(--sans);font-size:15.6px;font-weight:600;margin-bottom:5px}
+  .round .why{font-size:14.2px;color:var(--ink-2);margin:0 0 8px;max-width:62ch}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+  .act{font-family:var(--mono);font-size:11px;background:var(--inset);color:var(--ink-2);
+       padding:2.5px 7px;border-radius:2px}
+  .decs{list-style:none;padding:0;margin:0;font-size:13.6px;color:var(--muted)}
+  .decs li{padding-left:16px;position:relative;margin-bottom:3px}
+  .decs li::before{content:"→";position:absolute;left:0;color:var(--line-2)}
+
+  /* callout */
+  .callout{border-left:3px solid var(--accent);background:var(--surface);
+           padding:18px 22px;margin:22px 0}
+  .callout .lbl{color:var(--accent);margin-bottom:7px;display:block}
+  .callout p{margin:0 0 10px;font-size:15.2px}
+  .callout p:last-child{margin-bottom:0}
+
+  /* bugs */
+  .bugs{display:flex;flex-direction:column;gap:0;margin-top:18px;
+        border-top:1px solid var(--line-2)}
+  .bug{padding:16px 0;border-bottom:1px solid var(--line)}
+  .bug .t{font-family:var(--sans);font-size:15.4px;font-weight:600;margin-bottom:4px}
+  .bug p{font-size:14.2px;color:var(--ink-2);margin:0;max-width:66ch}
+  .swing{font-family:var(--mono);font-size:11.8px;color:var(--accent);font-weight:500;
+         margin-top:5px;display:block}
+
+  pre{background:var(--inset);border:1px solid var(--line);padding:14px 16px;
+      overflow-x:auto;font-family:var(--mono);font-size:12.6px;line-height:1.7;margin:14px 0}
+  footer{padding:30px 0 0;border-top:2px solid var(--ink);margin-top:30px;
+         font-size:13.8px;color:var(--muted)}
+  @media (max-width:640px){
+    .hyp{grid-template-columns:1fr}
+    .round{grid-template-columns:1fr;gap:6px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">
+    <span class="lbl">Automated experiment readout</span>
+    <span class="mono" style="color:var(--muted);font-size:12px">careem_sim · amazon_xvert</span>
+  </div>
+  <h1>Does behaviour on one surface make the others smarter?</h1>
+  <p class="standfirst">An agent pre-registered nine hypotheses about cross-vertical
+  recommendation, ran the ablations that could refute them, and judged each against a
+  threshold it committed to in advance. Three held.</p>
+</header>
+
+<div class="strip">
+  <div><div class="v">9</div><div class="k">Hypotheses</div></div>
+  <div><div class="v">3 / 5 / 1</div><div class="k">Held / refuted / underpowered</div></div>
+  <div><div class="v">4</div><div class="k">Rounds, self-paced</div></div>
+  <div><div class="v">13</div><div class="k">Models evaluated</div></div>
+  <div><div class="v">10:09</div><div class="k">Wall clock</div></div>
+  <div><div class="v">5</div><div class="k">Eval bugs found</div></div>
+</div>
+
+<section>
+  <div class="kicker"><span class="num">01</span><div>
+    <h2>The setup</h2></div></div>
+  <div class="col">
+    <p>Three verticals — <strong>Food</strong>, <strong>Quik</strong>, <strong>Shops</strong> —
+    and one question that decides whether a shared personalization layer is worth building:
+    when a user is cold on the surface being ranked but active elsewhere, does their other
+    behaviour help?</p>
+    <p>The agent profiles the log, writes down falsifiable claims with the slice each applies
+    to and the minimum effect that counts as support, runs the smallest comparison that could
+    refute each one, then lets the verdicts choose the next round. It prunes families that
+    fall out of contention, raises catalogue-health guardrails, and stops when it runs out of
+    questions rather than when the leaderboard stops moving.</p>
+    <p class="note">Protocol, identical for every arm: per-user temporal leave-one-out, last
+    interaction held out. Every arm ranks the same candidate pool with the same already-seen
+    masking, applied by the evaluator rather than the model, so no arm can win by filtering
+    harder. Primary metric NDCG@10; every comparison paired at user level with a
+    2,000-sample bootstrap 95% CI.</p>
+  </div>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">02</span><div>
+    <h2>The verdict ledger</h2>
+    <p class="note">Each interval is the 95% CI for relative lift. The dashed line is the bar
+    that hypothesis committed to <em>before</em> running. An interval entirely past the bar
+    is support; entirely short of it is refutation; straddling it means the data cannot
+    separate the two.</p></div></div>
+  <div class="ledger" id="ledger"></div>
+  <p class="note" style="margin-top:14px">Most claims did not survive. That is the expected
+  shape of an honest bake-off — and <code>H3-kg</code> is reported as underpowered rather
+  than null because only 25 of 1,382 tail rows were ranked in the top-10 by either arm, so
+  the comparison could not have detected the effect it was looking for.</p>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">03</span><div>
+    <h2>Where the two datasets disagree</h2>
+    <p class="note">The same hypothesis, the same code, two logs. This is the result the whole
+    exercise exists to produce.</p></div></div>
+  <div class="vs">
+    <div>
+      <div class="ds">careem_sim · simulated, ρ = 0.55 known</div>
+      <div class="big" style="color:var(--held)">+15.7%</div>
+      <div class="ci">95% CI [+9.0%, +23.2%] · bar +5% · n = 679</div>
+      <div class="verdict"><span class="chip held">Held</span></div>
+      <p class="expl">With transfer genuinely present in the generative process, the method
+      recovers it. This validates the <em>method</em>, not user behaviour.</p>
+    </div>
+    <div>
+      <div class="ds">amazon_xvert · real, 35,229 users</div>
+      <div class="big" style="color:var(--refuted)">−1.9%</div>
+      <div class="ci">95% CI [−7.3%, +3.3%] · bar +5% · n = 12,715</div>
+      <div class="verdict"><span class="chip refuted">Refuted</span></div>
+      <p class="expl">On real cross-category purchases the interval excludes the +5% bar
+      entirely. Graph-walk transfer does not deliver the lift it delivers in simulation.</p>
+    </div>
+  </div>
+  <p class="note">Both runs cleared the no-harm guardrail, so transfer costs single-surface
+  users nothing — it simply does not pay on this real log. The honest reading: the mechanism
+  works when the signal is there, and on Amazon cross-category co-purchase the signal is too
+  weak to clear a 5% bar. A marketplace with genuinely shared intent across verticals is a
+  different question, and the simulator shows what the answer would look like if it were.</p>
+  <p class="note" style="border-left:2px solid var(--line-2);padding-left:14px">
+  <strong>Scope of the Amazon run:</strong> rounds 1–2 completed (nine baselines and the
+  transfer ablation, 35,207 evaluation rows). Rounds 3–4 — the transformer, the fusion
+  ranker and session adaptation — were cut short on CPU budget, so those four hypotheses
+  carry simulator evidence only. Stated here rather than left for a reader to notice.</p>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">04</span><div>
+    <h2>Leaderboard</h2>
+    <p class="note">careem_sim. Coverage and novelty sit next to accuracy on purpose: a model
+    that wins by serving the same head items to everyone is a catalogue-collapse risk, not a
+    ranking win.</p></div></div>
+  <div class="scroll"><table>
+    <thead><tr>
+      <th>Model</th><th>NDCG@10</th><th>Hit@10</th><th>Transfer-only</th>
+      <th>Cold-in-vertical</th><th>Coverage@10</th><th>Fit</th>
+    </tr></thead>
+    <tbody id="lb"></tbody>
+  </table></div>
+  <p class="note">The transformer lands <em>below</em> the popularity floor on overall NDCG.
+  With a median history of 13 events there is little sequence for attention to exploit, and
+  its top-10 covers 7.5% of the catalogue against the graph walk's 70%. Reported as a
+  refutation, not omitted.</p>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">05</span><div>
+    <h2>How the agent spent its budget</h2>
+    <p class="note">Rounds are not a fixed schedule. Each one is chosen from the previous
+    round's verdicts.</p></div></div>
+  <div class="rounds" id="rounds"></div>
+  <div class="callout">
+    <span class="lbl">The stopping rule, in its own words</span>
+    <p>“Round 3 did not move the leaderboard, but <code>['fusion', 'session_adaptation']</code>
+    still test untested mechanisms, so the run continued.”</p>
+    <p class="note" style="margin:0">A plateau rule alone would have ended the run at round 3
+    with the fusion and session-adaptation hypotheses never tested. A hypothesis-driven agent
+    stops when it runs out of questions, not when a number stops moving.</p>
+  </div>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">06</span><div>
+    <h2>From offline win to launch decision</h2></div></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Comparison</th><th>Δ NDCG@10</th><th>Relative</th><th>95% CI</th>
+    <th>Significant</th><th>Users / arm</th></tr></thead>
+    <tbody>
+      <tr><td>champion vs popularity floor</td><td>+0.0750</td><td>+48.9%</td>
+        <td>[+0.0686, +0.0815]</td><td>yes</td><td>323</td></tr>
+      <tr><td>champion vs BPR-MF</td><td>+0.0721</td><td>+46.1%</td>
+        <td>[+0.0655, +0.0785]</td><td>yes</td><td>353</td></tr>
+      <tr><td>team-draft interleaving</td><td>+0.0991</td><td>per-slate preference</td>
+        <td>[+0.0850, +0.1133]</td><td>yes</td><td>5,720 slates</td></tr>
+      <tr><td>simulated online A/B (CTR@10)</td><td>0.1225 → 0.1146</td><td>−6.4%</td>
+        <td>[−0.0142, −0.0008]</td><td>yes</td><td>3,031</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout">
+    <span class="lbl">Conflict the agent raised itself</span>
+    <p>Interleaving and the simulated A/B <strong>disagree in sign</strong>: +0.0991 per-slate
+    preference against −6.4% CTR. Mean true utility of the full slate is lower for the
+    challenger (+0.0067 against +0.0549).</p>
+    <p>The champion is better at placing the <em>single next item</em> near the top and worse
+    at filling the other nine slots. NDCG@10 on one held-out item is not slate quality — and
+    a readout that reported the offline win without naming this would have shipped a
+    regression.</p>
+  </div>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">07</span><div>
+    <h2>Five bugs that produced believable numbers</h2>
+    <p class="note">Each was found by a result that looked plausible and was not. All five are
+    now regression-tested.</p></div></div>
+  <div class="bugs" id="bugs"></div>
+</section>
+
+<section>
+  <div class="kicker"><span class="num">08</span><div><h2>Run it</h2></div></div>
+  <pre>pip install -r requirements.txt
+
+python -m autoexp --dataset careem_sim     <span style="color:var(--muted)"># ~10 min, no downloads</span>
+python -m autoexp --dataset amazon_xvert   <span style="color:var(--muted)"># real HF data, ~1GB once</span>
+python -m autoexp --dataset both --llm     <span style="color:var(--muted)"># + Claude-written readout</span>
+
+streamlit run app.py                       <span style="color:var(--muted)"># browse any completed run</span>
+python tests_smoke.py                      <span style="color:var(--muted)"># the five bug regressions</span></pre>
+  <p class="note">Each run writes <code>report.md</code>, <code>run.json</code> (every
+  hypothesis, verdict and statistic — the auditable log), <code>leaderboard.csv</code> and
+  <code>narrative.md</code>. The LLM narrator is an upgrade, not a dependency: with no API
+  key a deterministic narrator renders the same facts, which also makes the model's output
+  diffable against a known-correct version of itself.</p>
+</section>
+
+<footer>
+  <p>Data: <a href="https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023">McAuley-Lab/Amazon-Reviews-2023</a>
+  (5-core, rating-only; Grocery → food, Health&nbsp;&amp;&nbsp;Household → quik, Beauty → shops)
+  plus a bundled multi-vertical simulator with known transfer strength. 25.8% of the 1.46M
+  users in those categories buy across two or more of them.</p>
+</footer>
+</div>
+
+<script>
+const HYPS = [
+  {id:"H1-personalization", v:"held", slice:"all", bar:10, est:46.1, lo:41.8, hi:50.5,
+   claim:"Personalised retrieval beats the non-personalised popularity floor.", n:"5,720"},
+  {id:"H2-transfer", v:"held", slice:"transfer_only", bar:5, est:15.7, lo:9.0, hi:23.2,
+   claim:"Cross-vertical history helps users who are cold on the surface being ranked.", n:"679"},
+  {id:"H2b-no-harm", v:"held", slice:"single_vertical_user", bar:-2, est:3.3, lo:1.8, hi:5.1,
+   claim:"Transfer does not degrade users active in only one vertical.", n:"1,566"},
+  {id:"H3-kg", v:"underpowered", slice:"tail_target", bar:5, est:null, lo:null, hi:null,
+   claim:"Knowledge-graph attribute edges rescue tail items.", n:"1,382",
+   why:"only 25 of 1,382 rows ranked by either arm"},
+  {id:"H4-attention", v:"refuted", slice:"all", bar:3, est:-35.0, lo:-38.0, hi:-32.1,
+   claim:"A self-attentive sequential model beats the best non-sequential retriever.", n:"5,720"},
+  {id:"H4b-vertical-context", v:"refuted", slice:"transfer_only", bar:3, est:-1.4, lo:-4.3, hi:1.6,
+   claim:"An explicit vertical embedding helps the transformer transfer.", n:"679"},
+  {id:"H5-fusion", v:"refuted", slice:"all", bar:2, est:-0.7, lo:-1.4, hi:0.0,
+   claim:"A learned second stage beats the best single retriever.", n:"5,720"},
+  {id:"H5b-transfer-features", v:"refuted", slice:"transfer_only", bar:2, est:-0.5, lo:-2.6, hi:1.5,
+   claim:"Cross-vertical history features earn their place inside the ranker.", n:"679"},
+  {id:"H6-session", v:"refuted", slice:"all", bar:2, est:-0.3, lo:-1.1, hi:0.5,
+   claim:"Re-encoding within the session beats a batch-frozen representation.", n:"5,720"},
+];
+
+const LB = [
+  ["graph_walk(xvert,L=3)","graph_walk",.2283,.3091,.1502,.1397,.7031,"0.7s",1],
+  ["graph_walk(xvert+kg,L=5)","graph_walk",.2277,.3075,.1475,.1386,.6878,"0.9s",0],
+  ["graph_walk(xvert+kg,L=3)","graph_walk",.2272,.3080,.1437,.1328,.7738,"0.8s",0],
+  ["two_stage(2src,+transfer)","two_stage",.2267,.3093,.1562,.1463,.4630,"40s",0],
+  ["two_stage(2src,no-transfer)","two_stage",.2264,.3101,.1570,.1476,.4496,"42s",0],
+  ["graph_walk(within,L=3)","graph_walk",.2240,.3017,.1299,.1078,.5137,"0.8s",0],
+  ["bpr_mf(d=64)","bpr_mf",.1563,.2656,.1410,.1354,.2435,"28s",0],
+  ["popularity","popularity",.1533,.2642,.1501,.1446,.0640,"0.0s",0],
+  ["sasrec(d=64,L=2,no-vert)","sasrec",.1502,.2594,.1477,.1410,.0747,"110s",0],
+  ["sasrec(d=64,L=2,+vert)","sasrec",.1483,.2566,.1456,.1404,.0754,"115s",0],
+  ["sasrec_session(d=64,L=2,+vert)","sasrec_session",.1479,.2573,.1415,.1370,.0740,"112s",0],
+  ["item_knn(k=150)","item_knn",.1419,.2622,.1442,.1390,.2028,"0.4s",0],
+  ["cross_vertical_bridge","cross_vertical_bridge",.1084,.2054,.1362,.1330,.1081,"0.0s",0],
+];
+
+const ROUNDS = [
+  {n:"R1", goal:"Establish the floor and the classical baselines",
+   why:"Round 1 buys the reference points every later claim is measured against.",
+   acts:["baselines"],
+   decs:["pruned item_knn — 37% below the leader","pruned popularity — 32% below",
+         "pruned bpr_mf — 30% below"]},
+  {n:"R2", goal:"Test cross-vertical transfer as a one-factor ablation",
+   why:"72.6% of users are active in two or more verticals, so there is a real population for transfer to serve. The two arms differ in exactly one term.",
+   acts:["cross_vertical_ablation"],
+   decs:["pruned cross_vertical_bridge — 53% below the leader"]},
+  {n:"R3", goal:"Separate knowledge-graph edges from walk depth, and test attention",
+   why:"Transfer was supported, so the next question is which graph structure carries it — and whether attention over the cross-vertical sequence pays for itself.",
+   acts:["graph_depth_and_kg","sequential"],
+   decs:["leaderboard did not move, but two mechanisms remained untested — run continued"]},
+  {n:"R4", goal:"Fuse the surviving retrievers; isolate within-session adaptation",
+   why:"Retrieval questions are settled; what remains is how to combine them, and whether in-session re-encoding is worth it separately from retraining.",
+   acts:["fusion","session_adaptation"],
+   decs:["pruned sasrec — 34% below the leader","pruned sasrec_session — 35% below",
+         "stopped: reached the 4-round budget"]},
+];
+
+const BUGS = [
+  {t:"Optimistic tie-breaking scored no-signal users as perfect",
+   p:"Rank was counted as strictly-better + 1. A model returning an all-zero score row — a user it has no signal for — ties with every candidate and was handed rank 1, a perfect NDCG. This inflated the popularity floor, which has large tie groups by construction, and the transfer control arm.",
+   s:"Flipped the sign of the headline result"},
+  {t:"The transfer ablation measured dilution, not transfer",
+   p:"Toggling cross-vertical graph edges with one seed over the whole history let walk mass leak out of the target vertical through high-degree items, so transfer arrived as popularity-biased noise replacing good signal. It was also non-monotone, so it could never measure transfer's incremental value.",
+   s:"−47% → +15.7% after decomposing the seed"},
+  {t:"Two evaluation protocols silently disagreed",
+   p:"The two-stage ranker chose its blend prior without masking already-seen items while the evaluator masked them. A random walk restarts on the user's own history, so unmasked it looks like the worst retriever and masked it is the best — validation picked the wrong prior on that discrepancy.",
+   s:"Masking now lives in one function every ranking path calls"},
+  {t:"Hard-negative mining inverted the ranker",
+   p:"Mining negatives from the fused top-200 trained a ranker with held-out AUC 0.40 — worse than chance. The held-out target often sits below the top-200, so every hard negative outranked it and the model learned high retrieval score ⇒ negative.",
+   s:"AUC 0.40 → 0.75, plus an assertion that refuses an inverted ranker"},
+  {t:"Budget discipline deleted the experiment",
+   p:"Pruning families on round-1 rank removed the within-vertical graph walk on the Amazon log — which is the control arm of the cross-vertical hypothesis. The headline question came back as “an arm failed to run”. Pruning now protects any family whose own experiment has not happened yet.",
+   s:"A weak arm can still be the right control"},
+];
+
+// ---- CI interval plots, drawn to one scale per row
+function plot(h){
+  const W=100, H=34, padL=2, padR=2;
+  if(h.est===null){
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="underpowered, no interval">
+      <line x1="${padL}" y1="20" x2="${W-padR}" y2="20" stroke="var(--line-2)" stroke-width=".6"/>
+      <text x="${W/2}" y="17" text-anchor="middle" font-family="var(--mono)" font-size="7"
+        fill="var(--under)">no measurable interval</text></svg>`;
+  }
+  const vals=[h.lo,h.hi,h.bar,0];
+  let min=Math.min(...vals), max=Math.max(...vals);
+  const span=(max-min)||1, pad=span*0.18;
+  min-=pad; max+=pad;
+  const x=v=>padL+((v-min)/(max-min))*(W-padL-padR);
+  const col=h.v==="held"?"var(--held)":h.v==="refuted"?"var(--refuted)":"var(--under)";
+  const yb=19;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="${h.est}% lift, CI ${h.lo} to ${h.hi}, bar ${h.bar}">
+    <line x1="${padL}" y1="${yb}" x2="${W-padR}" y2="${yb}" stroke="var(--line)" stroke-width=".5"/>
+    <line x1="${x(0)}" y1="${yb-7}" x2="${x(0)}" y2="${yb+5}" stroke="var(--line-2)" stroke-width=".7"/>
+    <line x1="${x(h.bar)}" y1="${yb-9}" x2="${x(h.bar)}" y2="${yb+6}" stroke="var(--ink-2)"
+      stroke-width=".8" stroke-dasharray="2 1.6"/>
+    <line x1="${x(h.lo)}" y1="${yb}" x2="${x(h.hi)}" y2="${yb}" stroke="${col}" stroke-width="3.2"
+      stroke-linecap="round"/>
+    <circle cx="${x(h.est)}" cy="${yb}" r="2.6" fill="${col}" stroke="var(--surface)" stroke-width=".9"/>
+    <text x="${x(h.bar)}" y="${yb+13}" text-anchor="middle" font-family="var(--mono)"
+      font-size="6.4" fill="var(--muted)">bar ${h.bar>0?"+":""}${h.bar}%</text>
+    <text x="${x(0)}" y="${yb-10}" text-anchor="middle" font-family="var(--mono)"
+      font-size="6.4" fill="var(--muted)">0</text>
+  </svg>`;
+}
+
+document.getElementById("ledger").innerHTML = HYPS.map(h=>`
+  <div class="hyp">
+    <div>
+      <div class="idrow"><span class="hid">${h.id}</span>
+        <span class="chip ${h.v}">${h.v}</span></div>
+      <p class="claim">${h.claim}</p>
+      <div class="meta">slice <b>${h.slice}</b> · n <b>${h.n}</b> · bar
+        <b>${h.bar>0?"+":""}${h.bar}%</b></div>
+    </div>
+    <div class="plot">${plot(h)}
+      <div class="cap">${h.est===null ? h.why :
+        `${h.est>0?"+":""}${h.est.toFixed(1)}% · CI [${h.lo>0?"+":""}${h.lo.toFixed(1)}%, ${h.hi>0?"+":""}${h.hi.toFixed(1)}%]`}</div>
+    </div>
+  </div>`).join("");
+
+const maxN = Math.max(...LB.map(r=>r[2]));
+document.getElementById("lb").innerHTML = LB.map(r=>`
+  <tr class="${r[8]?"win":""}">
+    <td>${r[0]}<div class="fam">${r[1]}</div></td>
+    <td><span class="bar" style="width:${(r[2]/maxN*34).toFixed(1)}px"></span>${r[2].toFixed(4)}</td>
+    <td>${r[3].toFixed(4)}</td><td>${r[4].toFixed(4)}</td><td>${r[5].toFixed(4)}</td>
+    <td>${r[6].toFixed(3)}</td><td>${r[7]}</td>
+  </tr>`).join("");
+
+document.getElementById("rounds").innerHTML = ROUNDS.map(r=>`
+  <div class="round">
+    <div class="rn">${r.n}</div>
+    <div>
+      <div class="goal">${r.goal}</div>
+      <p class="why">${r.why}</p>
+      <div class="acts">${r.acts.map(a=>`<span class="act">${a}</span>`).join("")}</div>
+      <ul class="decs">${r.decs.map(d=>`<li>${d}</li>`).join("")}</ul>
+    </div>
+  </div>`).join("");
+
+document.getElementById("bugs").innerHTML = BUGS.map(b=>`
+  <div class="bug"><div class="t">${b.t}</div><p>${b.p}</p>
+    <span class="swing">${b.s}</span></div>`).join("");
+</script>

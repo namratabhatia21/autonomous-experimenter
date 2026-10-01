@@ -81,6 +81,9 @@ class Planner:
         self.llm_client = llm_client
         self.seed = seed
         self.decisions: List[Dict[str, Any]] = []
+        #: Actions already run. Pruning only touches families whose own
+        #: experiment has already happened - see ``_protected_families``.
+        self.executed_actions: set = set()
 
     # ------------------------------------------------------------- judging
     def judge(self, evidence: Evidence, round_no: int) -> List[str]:
@@ -127,34 +130,65 @@ class Planner:
                         f"metric that scores the whole ranking."
                     )
                 else:
-                    # Support requires both a big enough effect and a CI that
-                    # excludes zero. Either alone is how teams ship noise.
-                    big_enough = rel >= h.target_delta * 100
-                    if cmp.get("significant") and big_enough:
+                    # Decide by comparing the whole confidence interval against
+                    # the bar the hypothesis committed to in advance:
+                    #   supported  - the entire interval clears the bar
+                    #   refuted    - the entire interval falls short of it
+                    #   otherwise  - the data cannot separate the two
+                    #
+                    # The earlier rule combined "significant" with "|effect| >=
+                    # bar", which marked a no-harm hypothesis REFUTED on a
+                    # *+3.7%* result: the effect was larger than the 2% bar in
+                    # magnitude, so it counted as a miss even though it moved in
+                    # the direction the claim wanted. Comparing interval to bar
+                    # handles improvement and no-harm claims with one rule and
+                    # no direction special-casing.
+                    bar = h.target_delta * 100.0
+                    lo = cmp.get("rel_ci_low", float("nan"))
+                    hi = cmp.get("rel_ci_high", float("nan"))
+                    if lo > bar:
                         h.verdict = "supported"
-                    elif not cmp.get("significant"):
-                        h.verdict = ("inconclusive" if abs(rel) < h.target_delta * 100
-                                     else "refuted")
-                    else:
+                    elif hi < bar:
                         h.verdict = "refuted"
+                    else:
+                        h.verdict = "inconclusive"
                     h.evidence = (
                         f"{h.metric} on {h.slice}: {cmp['delta']:+.4f} "
-                        f"({rel:+.1f}%), 95% CI [{cmp['ci_low']:+.4f}, {cmp['ci_high']:+.4f}], "
+                        f"({rel:+.1f}%), 95% CI [{lo:+.1f}%, {hi:+.1f}%], "
                         f"n={cmp['n']} ({info} informative), "
-                        f"required >= {h.target_delta * 100:.0f}%"
+                        f"required >= {bar:+.0f}%"
                     )
             lines.append(f"{h.id}: {h.verdict.upper()} - {h.evidence}")
         return lines
 
     # ------------------------------------------------------------- pruning
+    def _protected_families(self) -> set:
+        """Families a not-yet-run action still needs.
+
+        Pruning on round-1 rank alone is actively dangerous: on the Amazon log
+        the within-vertical graph walk placed *below* item-kNN and was pruned,
+        which deleted the control arm of the cross-vertical hypothesis and left
+        the headline question unanswerable ("an arm failed to run"). Budget
+        discipline must never remove a family whose own experiment has not
+        happened yet - a weak arm can still be the right control.
+        """
+        protected: set = set()
+        for action, families in ACTION_REQUIRES.items():
+            if action not in self.executed_actions:
+                protected |= families
+        return protected
+
     def prune(self, evidence: Evidence) -> List[str]:
         """Stop spending budget on families that are clearly out of contention."""
         msgs = []
         best = evidence.best()
         if best is None or best.primary <= 0:
             return msgs
+        protected = self._protected_families()
         for fam in {r.family for r in evidence.results.values() if not r.error}:
             if fam in evidence.pruned_families or fam == best.family:
+                continue
+            if fam in protected:
                 continue
             fam_best = max(evidence.by_family(fam), key=lambda r: r.primary, default=None)
             if fam_best is None:
@@ -207,6 +241,9 @@ class Planner:
         plan.goal = "; ".join(goals)
         plan.reflection = " ".join(r for r in reflections if r)
         plan.actions = actions
+        # These are about to run, so from the next prune onward their families
+        # are no longer protected.
+        self.executed_actions.update(actions)
         return plan
 
     def _choose_actions(self, round_no: int, evidence: Evidence) -> List[str]:
@@ -320,15 +357,44 @@ Reply with JSON only: {{"actions": ["..."], "reasoning": "one sentence"}}"""
         return None
 
     # ------------------------------------------------------------- stopping
-    def should_stop(self, evidence: Evidence, history: List[float]) -> Optional[str]:
+    def should_stop(self, evidence: Evidence, history: List[float],
+                    next_round: int) -> Optional[str]:
+        """Stop when the agent runs out of *questions*, not when the
+        leaderboard stops moving.
+
+        Plateau alone is the wrong trigger for a hypothesis-driven agent. On
+        the Amazon log the leader never changed after round 1, so a pure
+        plateau rule ended the run at round 2 and the attention, fusion and
+        session-adaptation hypotheses were never tested on real data at all -
+        the agent stopped while it still had untested mechanisms queued. Those
+        rounds ask different questions; they are not further attempts to nudge
+        the same number.
+
+        So plateau only stops the run once every remaining action has already
+        been executed. Otherwise it is recorded as a note and the run
+        continues.
+        """
+        if next_round > self.max_rounds:
+            return f"reached the {self.max_rounds}-round budget"
+
+        remaining = [a for a in self._rule_actions(next_round, evidence)
+                     if a not in self.executed_actions]
         if len(history) >= 2:
             prev, cur = history[-2], history[-1]
-            if prev > 0 and (cur - prev) / prev < PLATEAU_EPS:
+            plateaued = prev > 0 and (cur - prev) / prev < PLATEAU_EPS
+            if plateaued and not remaining:
                 return (
-                    f"plateau: best {PRIMARY_METRIC} moved {100 * (cur - prev) / prev:+.1f}% "
-                    f"({prev:.4f} -> {cur:.4f}), below the {100 * PLATEAU_EPS:.0f}% "
-                    f"threshold for continuing to spend compute"
+                    f"plateau with no untested hypotheses left: best "
+                    f"{PRIMARY_METRIC} moved {100 * (cur - prev) / prev:+.1f}% "
+                    f"({prev:.4f} -> {cur:.4f}) and every planned action has run"
                 )
+            if plateaued and remaining:
+                evidence.notes.append(
+                    f"round {next_round - 1} did not move the leaderboard, but "
+                    f"{remaining} still test untested mechanisms, so the run continued."
+                )
+        if not remaining:
+            return "no further hypothesis worth testing"
         return None
 
 
@@ -557,6 +623,17 @@ ACTIONS = {
     "sequential": _action_sequential,
     "fusion": _action_fusion,
     "session_adaptation": _action_session,
+}
+
+#: Families each action needs in order to run at all. Pruning consults this so
+#: that a cheap round-1 ranking cannot delete a later experiment's control arm.
+ACTION_REQUIRES = {
+    "baselines": set(),
+    "cross_vertical_ablation": {"graph_walk", "cross_vertical_bridge"},
+    "graph_depth_and_kg": {"graph_walk"},
+    "sequential": {"sasrec"},
+    "fusion": {"two_stage"},
+    "session_adaptation": {"sasrec", "sasrec_session"},
 }
 
 ACTION_DOCS = {
