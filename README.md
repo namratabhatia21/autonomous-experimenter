@@ -4,7 +4,7 @@ An agent that **designs, runs, judges and writes up** recommender-system
 experiments on its own. Point it at an interaction log and it profiles the data,
 writes down falsifiable hypotheses, runs the smallest comparisons that could
 refute them, decides what to try next *from what it just learned*, stops when
-the leaderboard plateaus, and produces a decision memo.
+it runs out of questions, and produces a decision memo.
 
 Built for the Careem Personalization brief: a recommendation and ranking stack
 across three verticals (**Food / Quik / Shops**) whose central question is
@@ -12,7 +12,7 @@ whether a user's behaviour on one surface makes the others smarter.
 
 ```bash
 pip install -r requirements.txt
-python -m autoexp --dataset careem_sim        # simulator, ~4 min, no downloads
+python -m autoexp --dataset careem_sim        # simulator, ~10 min, no downloads
 python -m autoexp --dataset amazon_xvert      # real HF data, downloads ~1GB once
 python -m autoexp --dataset both --llm        # both + Claude-written readout
 streamlit run app.py                          # browse any completed run
@@ -39,16 +39,19 @@ expects first, and lets the result decide what happens next.
 
 **1. Hypotheses are pre-registered.** Before any arm trains, the agent writes
 the claim, the metric, the *slice* it applies to, and the minimum relative
-effect that counts as support. Judging requires both that threshold **and** a
-paired bootstrap CI excluding zero — either alone is how teams ship noise. Since
+effect that counts as support. A verdict then compares the **whole confidence
+interval** against that bar: entirely past it is support, entirely short of it is
+refutation, straddling it means the data cannot separate the two. One rule covers
+improvement claims and no-harm guardrails with no direction special-casing. Since
 the slice is fixed in advance, the agent cannot go hunting for one where the
 number happened to look good.
 
 **2. The plan adapts to the verdicts.** Refuted transfer means round 3 stops
-spending budget on transfer. A model family more than 25% below the leader is
-pruned. A collapsed catalogue raises a guardrail. The run stops on plateau, not
-on a fixed schedule. Every branch is a stated experimental rule in
-[`planner.py`](autoexp/planner.py).
+spending budget on transfer. A family more than 25% below the leader is pruned —
+unless a later hypothesis still needs it as a control. A collapsed catalogue
+raises a guardrail. The run ends when no untested hypothesis remains, not on a
+fixed schedule and not when the leaderboard stops moving. Every branch is a
+stated experimental rule in [`planner.py`](autoexp/planner.py).
 
 **3. Ablations are one-factor and monotone.** The transfer test is two arms that
 differ in exactly one term, and the control is that term set to zero — so
@@ -82,8 +85,8 @@ whole thing runs reproducibly with no API key.
 
 The headline slice is **`transfer_only`**: users with little or no history on the
 surface being ranked, but activity elsewhere. Only transfer can help them, so
-that is where the thesis lives or dies. On the Amazon slice they are **43% of all
-evaluation rows**.
+that is where the thesis lives or dies. On the Amazon log they are **36% of the
+35,207 evaluation rows**.
 
 ---
 
