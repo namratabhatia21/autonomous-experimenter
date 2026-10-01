@@ -22,6 +22,14 @@ Artefacts land in `runs/<dataset>-<timestamp>/`: `report.md` (the readout),
 `run.json` (every hypothesis, verdict and statistic — the auditable log),
 `leaderboard.csv`, and `narrative.md`.
 
+### → [**Read the results**](docs/RESULTS.md)
+
+A completed run: nine pre-registered hypotheses, three held, and the one finding that
+matters — cross-vertical transfer lifts NDCG@10 **+15.7%** on simulated data where the
+signal is known to exist, and is **refuted on real Amazon data**. Same code, same
+hypothesis, two logs. [`docs/ledger.html`](docs/ledger.html) is the same readout with the
+confidence intervals drawn against their thresholds.
+
 ---
 
 ## Why this isn't a grid search
